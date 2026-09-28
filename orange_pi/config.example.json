@@ -1,0 +1,36 @@
+{
+  "mega_port": null,
+  "mega_baud": 38400,
+  "hc05_mac": null,
+  "hc05_rfcomm_channel": null,
+  "ui_backend": "png",
+  "png_path": "screen-preview.png",
+  "screen": {
+    "width": 320,
+    "height": 240,
+    "controller": null,
+    "spi_display": null,
+    "spi_touch": null,
+    "gpiochip": null,
+    "dc_offset": null,
+    "reset_offset": null,
+    "touch_irq_offset": null,
+    "madctl": 96,
+    "x_offset": 0,
+    "y_offset": 0,
+    "touch_x_min": 300,
+    "touch_x_max": 3800,
+    "touch_y_min": 300,
+    "touch_y_max": 3800,
+    "touch_swap_xy": false,
+    "touch_invert_x": false,
+    "touch_invert_y": false
+  },
+  "lidar": {
+    "source": "none",
+    "jsonl_path": null,
+    "usb_port": null,
+    "baud": 230400,
+    "send_start_command": true
+  }
+}
