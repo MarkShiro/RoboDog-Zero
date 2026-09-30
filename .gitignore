@@ -4,5 +4,6 @@ __pycache__/
 orange_pi/.venv/
 orange_pi/config.json
 orange_pi/screen-preview.png
+commissioning/robot.json
 *.bin
 *.pyc

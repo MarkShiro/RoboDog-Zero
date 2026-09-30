@@ -36,13 +36,32 @@ class WireTests(unittest.TestCase):
 
 class ScreenTests(unittest.TestCase):
     def test_three_pages_and_bottom_touch(self):
+        self.assertEqual((WIDTH, HEIGHT), (240, 320))
         for page in (0, 1, 2):
             picture = paint(Snapshot(), page, 100.0)
             self.assertEqual(picture.size, (WIDTH, HEIGHT))
             self.assertEqual(len(rgb565(picture)), WIDTH * HEIGHT * 2)
-        self.assertEqual([page_from_touch(x, 220) for x in (50, 160, 280)],
+        self.assertEqual([page_from_touch(x, 300) for x in (40, 120, 200)],
                          [0, 1, 2])
-        self.assertIsNone(page_from_touch(100, 180))
+        self.assertIsNone(page_from_touch(100, 260))
+        self.assertEqual(page_from_touch(79, 270), 0)
+        self.assertEqual(page_from_touch(80, 270), 1)
+        self.assertEqual(page_from_touch(160, 270), 2)
+        self.assertIsNone(page_from_touch(240, 300))
+
+    def test_zero_wordmark_fills_main_area(self):
+        picture = paint(Snapshot(), 0, 100.0)
+        bright = []
+        for y in range(40, 260):
+            for x in range(10, 230):
+                r, g, b = picture.getpixel((x, y))
+                if r > 100 and g > 180 and b > 200:
+                    bright.append((x, y))
+        self.assertTrue(bright)
+        self.assertLessEqual(min(x for x, _ in bright), 30)
+        self.assertGreaterEqual(max(x for x, _ in bright), 210)
+        self.assertLessEqual(min(y for _, y in bright), 65)
+        self.assertGreaterEqual(max(y for _, y in bright), 245)
 
     def test_demo_snapshots_are_labeled(self):
         with tempfile.TemporaryDirectory() as root:

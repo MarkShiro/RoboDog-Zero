@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-// Keep FALSE until the checklist in README.md has been completed on the robot.
+// Commissioning gates are set only after the physical checks in docs/commissioning.md.
 constexpr bool ROBOT_CALIBRATED = false;
 constexpr bool ESTOP_SIGNAL_VERIFIED = false; // separate D41 status contact
 constexpr bool RAIL_SENSING_VERIFIED = false; // A1/A2, 100k/20k, measured VREF
@@ -17,6 +17,22 @@ constexpr bool HARDWARE_MOTOR_CUT_VERIFIED = false;
 // No automatic whole-robot power cut until the Pi shutdown path is validated.
 constexpr bool AUTOMATIC_POWER_RELEASE = false;
 
+// Physical input indices 0..7 mean Mega D42..D49. Each J uses one unique input.
+// Change the index if two sensors were plugged into each other's inputs.
+// true: NO-to-GND, LOW when pressed; false: NC-to-GND, HIGH when pressed.
+// Confirm every entry by pressing the actual joint switch with motor power OFF.
+const uint8_t LIMIT_INPUT_FOR_J[8] = {0,1,2,3,4,5,6,7};
+const bool LIMIT_ACTIVE_LOW_FOR_J[8] = {true,true,true,true,true,true,true,true};
+
+inline bool validLimitInputs(const uint8_t* inputs) {
+  uint8_t seen=0;
+  for(uint8_t j=0;j<8;++j) {
+    if(inputs[j]>=8 || (seen & (1U<<inputs[j]))) return false;
+    seen |= 1U<<inputs[j];
+  }
+  return seen==255;
+}
+
 // One row per ELECTRICAL channel J1..J8, not anatomical order.
 // leg: 0 front-left, 1 front-right, 2 rear-left, 3 rear-right.
 // joint: 0 proximal, 1 distal. angleSign: electrical +STEP -> angle +/-.
@@ -29,14 +45,14 @@ struct JointCalibration {
   uint16_t amplitude, maxHomeSteps;
 };
 const JointCalibration JOINTS[8] = {
-  {255,255,0,0,0,0,0,0,0,0,0}, // J1 Serial1 address 0 STEP22 DIR30 LIMIT42
-  {255,255,0,0,0,0,0,0,0,0,0}, // J2 Serial1 address 1 STEP23 DIR31 LIMIT43
-  {255,255,0,0,0,0,0,0,0,0,0}, // J3 Serial1 address 2 STEP24 DIR32 LIMIT44
-  {255,255,0,0,0,0,0,0,0,0,0}, // J4 Serial1 address 3 STEP25 DIR33 LIMIT45
-  {255,255,0,0,0,0,0,0,0,0,0}, // J5 Serial2 address 0 STEP26 DIR34 LIMIT46
-  {255,255,0,0,0,0,0,0,0,0,0}, // J6 Serial2 address 1 STEP27 DIR35 LIMIT47
-  {255,255,0,0,0,0,0,0,0,0,0}, // J7 Serial2 address 2 STEP28 DIR36 LIMIT48
-  {255,255,0,0,0,0,0,0,0,0,0}  // J8 Serial2 address 3 STEP29 DIR37 LIMIT49
+  {255,255,0,0,0,0,0,0,0,0,0}, // J1 Serial1 address 0 STEP22 DIR30
+  {255,255,0,0,0,0,0,0,0,0,0}, // J2 Serial1 address 1 STEP23 DIR31
+  {255,255,0,0,0,0,0,0,0,0,0}, // J3 Serial1 address 2 STEP24 DIR32
+  {255,255,0,0,0,0,0,0,0,0,0}, // J4 Serial1 address 3 STEP25 DIR33
+  {255,255,0,0,0,0,0,0,0,0,0}, // J5 Serial2 address 0 STEP26 DIR34
+  {255,255,0,0,0,0,0,0,0,0,0}, // J6 Serial2 address 1 STEP27 DIR35
+  {255,255,0,0,0,0,0,0,0,0,0}, // J7 Serial2 address 2 STEP28 DIR36
+  {255,255,0,0,0,0,0,0,0,0,0}  // J8 Serial2 address 3 STEP29 DIR37
 };
 
 // 200 full steps * 16 microsteps * 12 gear ratio / 36000 centidegrees.
@@ -78,7 +94,8 @@ inline bool validCalibrationRows(const JointCalibration* rows) {
 inline bool calibrationReady() {
   if(!(ROBOT_CALIBRATED && HARDWARE_MOTOR_CUT_VERIFIED &&
        RAIL_SENSING_VERIFIED && DRIVER_RSENSE_VERIFIED)) return false;
-  if(!STARTUP_ZERO_MODE) return ESTOP_SIGNAL_VERIFIED && validCalibrationRows(JOINTS);
+  if(!STARTUP_ZERO_MODE) return ESTOP_SIGNAL_VERIFIED &&
+    validLimitInputs(LIMIT_INPUT_FOR_J) && validCalibrationRows(JOINTS);
   uint8_t seen=0;
   for(uint8_t i=0;i<8;++i) {
     const JointCalibration& c=JOINTS[i];

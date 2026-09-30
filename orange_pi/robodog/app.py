@@ -75,12 +75,12 @@ def run(config:dict,demo:bool=False,snapshot:bool=False,page:int=0):
 
 
 def main(argv=None):
-    parser=argparse.ArgumentParser(description="RoboDog Orange Pi gateway and 320x240 touchscreen")
+    parser=argparse.ArgumentParser(description="RoboDog Orange Pi gateway and portrait 240x320 touchscreen")
     parser.add_argument("--config",default="config.json")
     parser.add_argument("--demo",action="store_true",help="clearly marked fake sensor data")
     parser.add_argument("--snapshot",action="store_true",help="render one PNG and exit")
     parser.add_argument("--page",type=int,choices=(0,1,2),default=0,
-                        help="initial screen: 0 face, 1 IMU, 2 LiDAR")
+                        help="initial screen: 0 ZE/RO, 1 IMU, 2 LiDAR")
     parser.add_argument("--capture-lidar",metavar="PATH",help="record raw COIN-D6 USB-UART bytes")
     parser.add_argument("--lidar-start",action="store_true",
                         help="send CSPC TOF AA55F00F command before raw capture")

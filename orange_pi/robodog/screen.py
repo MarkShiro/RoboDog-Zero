@@ -1,4 +1,4 @@
-"""320x240 UI: bottom touch menu, face, IMU, polar LiDAR.
+"""Portrait 240x320 UI: bottom touch menu, ZE/RO, IMU, polar LiDAR.
 
 Works as a PNG preview without hardware. Hardware backend requires explicit
 SPI devices and GPIO character-device line offsets, measured on the board.
@@ -11,9 +11,8 @@ from typing import Optional, Tuple
 from PIL import Image, ImageDraw, ImageFont
 from .state import Snapshot
 
-WIDTH, HEIGHT, MENU_TOP = 320, 240, 190
-NAV = (("ЛИЦО", 0, 106), ("IMU", 107, 212), ("ЛИДАР", 213, 319))
-NAV_ASCII = (("FACE", 0, 106), ("IMU", 107, 212), ("LIDAR", 213, 319))
+WIDTH, HEIGHT, MENU_TOP = 240, 320, 270
+NAV = (("ZERO", 0, 79), ("IMU", 80, 159), ("ЛИДАР", 160, 239))
 
 
 def font(size: int):
@@ -39,60 +38,68 @@ def color_for_state(state: int) -> str:
             3: "#ffd36a", 4: "#ff6481", 5: "#ffb066"}.get(state, "#ff6481")
 
 
+def _stroke(draw, points, color, width=14):
+    draw.line(points, fill=color, width=width, joint="curve")
+    radius = width // 2
+    for x, y in (points[:2], points[-2:]):
+        draw.ellipse((x-radius, y-radius, x+radius, y+radius), fill=color)
+
+
+def paint_wordmark(draw):
+    """Font-independent block letters; fill the main 240x320 content area."""
+    top, bottom = "#71e8f4", "#f0f7ff"
+    _stroke(draw, (24, 58, 103, 58, 24, 142, 103, 142), top)
+    _stroke(draw, (135, 58, 135, 142), top)
+    for y in (58, 100, 142):
+        _stroke(draw, (135, y, 216 if y != 100 else 204, y), top)
+    _stroke(draw, (24, 168, 24, 252), bottom)
+    _stroke(draw, (24, 168, 81, 168), bottom)
+    draw.arc((55, 168, 112, 218), 270, 90, fill=bottom, width=14)
+    _stroke(draw, (24, 215, 78, 215, 107, 252), bottom)
+    draw.ellipse((137, 166, 216, 254), outline=bottom, width=14)
+
+
 def paint(snapshot: Snapshot, page: int = 0, now: Optional[float] = None) -> Image.Image:
     now = time.monotonic() if now is None else now
     page = max(0, min(2, page))
     im = Image.new("RGB", (WIDTH, HEIGHT), "#0c1322")
     d = ImageDraw.Draw(im)
-    d.rounded_rectangle((6, 5, 313, 31), radius=9, fill="#17263b")
-    text(d, (15, 8), "ROBODOG", "#d8e9ff", 14)
+    d.rounded_rectangle((6, 5, 233, 31), radius=9, fill="#17263b")
+    text(d, (13, 8), "ROBODOG", "#d8e9ff", 13)
     live = snapshot.telemetry and now-snapshot.telemetry_at < 1.0
     if live:
         t = snapshot.telemetry
         voltage = "{:.1f} V".format(t.battery_mv/1000)
-        text(d, (236, 8), voltage, color_for_state(t.state), 14)
-        d.ellipse((216, 14, 224, 22), fill=color_for_state(t.state))
+        text(d, (163, 8), voltage, color_for_state(t.state), 13)
+        d.ellipse((148, 14, 155, 21), fill=color_for_state(t.state))
     else:
-        text(d, (221, 8), "NO MEGA", "#ff6481", 13)
+        text(d, (157, 8), "NO MEGA", "#ff6481", 11)
 
     if page == 0:
-        blink = (now % 4.2) > 4.0
-        d.rounded_rectangle((28, 42, 292, 178), radius=36, fill="#172a40", outline="#2b5676", width=2)
-        if blink:
-            for x in (107, 212):
-                d.arc((x-26, 77, x+26, 91), 0, 180, fill="#6cf3e0", width=5)
-        else:
-            for x in (107, 212):
-                d.ellipse((x-24, 68, x+24, 116), fill="#5fe5db")
-                d.ellipse((x-13, 70, x+13, 111), fill="#092535")
-                d.ellipse((x-8, 74, x-1, 81), fill="#ffffff")
-        d.arc((104, 101, 215, 165), 15, 165, fill="#ffbbca", width=5)
-        d.ellipse((51, 122, 72, 131), fill="#c76b89")
-        d.ellipse((248, 122, 269, 131), fill="#c76b89")
-        footer = "Пульт: " + ("есть" if now-snapshot.control_at < .3 else "нет")
-        text(d, (72, 164), footer, "#8fb4c9", 11)
+        paint_wordmark(d)
     elif page == 1:
         valid = snapshot.imu and now-snapshot.imu_at < .7 and (snapshot.imu.flags & 2)
-        d.rounded_rectangle((10, 40, 310, 182), radius=12, fill="#17263b")
+        d.rounded_rectangle((9, 41, 231, 260), radius=12, fill="#17263b")
         if valid:
             roll, pitch = snapshot.imu.roll, snapshot.imu.pitch
             text(d, (20, 47), "IMU MPU6050", "#77ddeb", 16)
-            text(d, (18, 76), "Крен {:+d}°".format(roll), "#ffffff", 21)
-            text(d, (18, 111), "Тангаж {:+d}°".format(pitch), "#ffffff", 19)
-            text(d, (18, 151), "Темп. {}°C".format(snapshot.imu.temperature), "#9bc1d8", 12)
-            cx, cy, radius = 246, 110, 48
+            text(d, (20, 78), "Крен {:+d}°".format(roll), "#ffffff", 20)
+            text(d, (20, 111), "Тангаж {:+d}°".format(pitch), "#ffffff", 18)
+            text(d, (20, 239), "Темп. {}°C".format(snapshot.imu.temperature), "#9bc1d8", 12)
+            cx, cy, radius = 120, 186, 43
             d.ellipse((cx-radius,cy-radius,cx+radius,cy+radius), outline="#456982", width=2)
             angle=math.radians(-roll)
-            dx,dy=math.cos(angle)*40,math.sin(angle)*40
+            dx,dy=math.cos(angle)*37,math.sin(angle)*37
             d.line((cx-dx,cy-dy,cx+dx,cy+dy), fill="#5fe5db", width=4)
             d.ellipse((cx-4,cy-4,cx+4,cy+4), fill="#ffcf6e")
         else:
-            text(d, (24, 82), "Нет свежих данных IMU", "#ffb066", 17)
-            text(d, (24, 115), "Проверьте кадры I от Mega", "#9bc1d8", 11)
+            text(d, (18, 92), "Нет свежих данных IMU", "#ffb066", 15)
+            text(d, (18, 129), "Проверьте кадры I", "#9bc1d8", 12)
+            text(d, (18, 150), "от Mega 2560", "#9bc1d8", 12)
     else:
         valid = snapshot.lidar and now-snapshot.lidar_at < 1.0
-        d.rounded_rectangle((10, 40, 310, 182), radius=12, fill="#17263b")
-        cx, cy, radius = 160, 111, 61
+        d.rounded_rectangle((9, 41, 231, 260), radius=12, fill="#17263b")
+        cx, cy, radius = 120, 159, 77
         for ring in (radius//3,2*radius//3,radius):
             d.ellipse((cx-ring,cy-ring,cx+ring,cy+ring), outline="#31506a")
         d.line((cx-radius,cy,cx+radius,cy), fill="#31506a")
@@ -107,25 +114,27 @@ def paint(snapshot: Snapshot, page: int = 0, now: Optional[float] = None) -> Ima
                 px = cx + math.sin(angle)*r
                 py = cy - math.cos(angle)*r
                 d.ellipse((px-1,py-1,px+1,py+1),fill="#5fe5db")
-            text(d, (17, 46), snapshot.lidar_label, "#77ddeb", 11)
+            text(d, (17, 47), snapshot.lidar_label[:28], "#77ddeb", 10)
         else:
-            text(d, (14, 158), "Нет подтверждённого скана", "#ffb066", 13)
+            text(d, (19, 242), "Нет подтверждённого скана", "#ffb066", 12)
 
-    d.rectangle((0, MENU_TOP, 319, 239), fill="#15243a")
-    d.line((0,MENU_TOP,319,MENU_TOP), fill="#41627b", width=2)
-    labels=NAV
-    for index, (label,left,right) in enumerate(labels):
-        if index==page:
-            d.rounded_rectangle((left+4,194,right-4,235), radius=9, fill="#286779")
-        else:
-            d.rounded_rectangle((left+4,194,right-4,235), radius=9, fill="#21384d")
-        text(d, (left+16,205), label, "#ffffff", 15)
+    d.rectangle((0, MENU_TOP, WIDTH-1, HEIGHT-1), fill="#15243a")
+    d.line((0, MENU_TOP, WIDTH-1, MENU_TOP), fill="#41627b", width=2)
+    for index, (label,left,right) in enumerate(NAV):
+        d.rounded_rectangle((left+3, 277, right-3, 313), radius=9,
+                            fill="#286779" if index == page else "#21384d")
+        try:
+            box=d.textbbox((0, 0), label, font=font(13))
+        except UnicodeEncodeError:
+            label="LIDAR"
+            box=d.textbbox((0, 0), label, font=font(13))
+        text(d, ((left+right-(box[2]-box[0]))//2, 287), label, "#ffffff", 13)
     return im
 
 
 def page_from_touch(x: int,y: int) -> Optional[int]:
     if 0 <= x < WIDTH and MENU_TOP <= y < HEIGHT:
-        return min(x//107,2)
+        return x//80
     return None
 
 
@@ -150,6 +159,8 @@ class SpiScreen:
         kind=cfg.get("controller")
         if kind not in ("st7789","ili9341"):
             raise ValueError("set screen.controller to verified st7789 or ili9341")
+        if (cfg.get("width", WIDTH), cfg.get("height", HEIGHT)) != (WIDTH, HEIGHT):
+            raise ValueError("screen must be configured for portrait 240x320")
         from periphery import GPIO, SPI
         self.display=SPI(cfg["spi_display"],0,16000000)
         self.touch=SPI(cfg["spi_touch"],0,1000000)
@@ -170,7 +181,9 @@ class SpiScreen:
                                    (0xB1,[0x00,0x18]),(0xB6,[0x08,0x82,0x27])):
                 self.command(opcode,params)
         self.command(0x3A,[0x55])
-        self.command(0x36,[int(cfg.get("madctl",0x68 if kind=="ili9341" else 0x60))])
+        madctl=cfg.get("madctl")
+        self.command(0x36,[int(madctl if madctl is not None else
+                               (0x48 if kind=="ili9341" else 0x00))])
         self.command(0x29); time.sleep(.1)
 
     def command(self, opcode, params=()):

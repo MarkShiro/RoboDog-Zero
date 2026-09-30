@@ -84,6 +84,9 @@ void printStatus() {
   Serial.print(F("positions J1..J8: "));
   for(uint8_t i=0;i<MOTOR_COUNT;++i) { Serial.print(Steppers::position(i)); Serial.print(' '); }
   Serial.println();
+  Serial.print(F("limits J1..J8 (1=pressed): "));
+  for(uint8_t i=0;i<MOTOR_COUNT;++i) Serial.print(motion.limitPressed(i)?'1':'0');
+  Serial.println();
 }
 void pollUsb() {
   uint8_t budget=48;

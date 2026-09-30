@@ -18,11 +18,17 @@ JointCalibration fixture[8]={
  {3,1,1,-1,-1000,-900,1000,0,500,300,3000}
 };
 bool testCalibrationReady() { return validCalibrationRows(fixture); }
+uint8_t fixtureLimitInput[8]={0,1,2,3,4,5,6,7};
+bool fixtureLimitActiveLow[8]={true,true,true,true,true,true,true,true};
 // Inject measured test data, leaving the shipped firmware's lock unchanged.
 #define JOINTS fixture
 #define calibrationReady testCalibrationReady
 #define ENABLE_EXPERIMENTAL_TROT true
+#define LIMIT_INPUT_FOR_J fixtureLimitInput
+#define LIMIT_ACTIVE_LOW_FOR_J fixtureLimitActiveLow
 #include "../firmware/RoboDogMegaFinal/motion.cpp"
+#undef LIMIT_ACTIVE_LOW_FOR_J
+#undef LIMIT_INPUT_FOR_J
 #undef ENABLE_EXPERIMENTAL_TROT
 #undef calibrationReady
 #undef JOINTS
@@ -41,7 +47,17 @@ int main() {
  fixture[1].joint=0; assert(!validCalibrationRows(fixture)); fixture[1].joint=1;
  fixture[0].angleSign=0; assert(!validCalibrationRows(fixture)); fixture[0].angleSign=1;
  fixture[0].amplitude=501; assert(!validCalibrationRows(fixture)); fixture[0].amplitude=300;
+ assert(validLimitInputs(fixtureLimitInput));
+ fixtureLimitInput[0]=1; assert(!validLimitInputs(fixtureLimitInput));
+ fixtureLimitInput[0]=8; assert(!validLimitInputs(fixtureLimitInput));
+ fixtureLimitInput[0]=0;
  Motion m; m.begin(); m.startHoming(); assert(m.homing());
+ pins[42]=HIGH; pins[43]=LOW; fixtureLimitInput[0]=1; fixtureLimitInput[1]=0;
+ assert(m.limitPressed(0) && !m.limitPressed(1));
+ pins[43]=HIGH; fixtureLimitActiveLow[0]=false;
+ assert(m.limitPressed(0));
+ fixtureLimitActiveLow[0]=true;
+ fixtureLimitInput[0]=0; fixtureLimitInput[1]=1;
  m.update(); m.update(); assert(speeds[0]<0);
  m.halt(); m.update(); assert(!m.homing() && !m.homed() && speeds[0]==0);
  m.startHoming(); pins[42]=LOW; m.update(); assert(speeds[0]>0);

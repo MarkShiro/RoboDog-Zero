@@ -1,7 +1,7 @@
 // Mega 2560: supported-robot bench identification only. NO gait or homing.
 // USB Serial 115200, newline. Orange Pi must be disconnected/unpowered.
 // Shared EN D38; each unselected TMC is additionally disabled with TOFF=0.
-// Read docs/Bringup-2026-09-25.md BEFORE connecting motor power.
+// Read docs/commissioning.md and docs/limit-switches.md first.
 #include <TMCStepper.h>
 #include <avr/wdt.h>
 #include "bench_limits.h"
@@ -20,6 +20,9 @@ constexpr uint16_t TEST_CURRENT_MA=600; // RMS, unloaded identification only.
 constexpr uint8_t STEP_PIN[8]={22,23,24,25,26,27,28,29};
 constexpr uint8_t DIR_PIN[8]={30,31,32,33,34,35,36,37};
 constexpr uint8_t LIMIT_PIN[8]={42,43,44,45,46,47,48,49};
+// Set each PHYSICAL D42..D49 input after the press/release test: true for
+// NO-to-GND, false for NC-to-GND. Mixed wiring is supported.
+constexpr bool LIMIT_ACTIVE_LOW[8]={true,true,true,true,true,true,true,true};
 // J1..J4 on Serial1, J5..J8 on Serial2. Address = MS1 + 2*MS2.
 // PDF: (MS1,MS2) = (0,0),(1,0),(0,1),(1,1) -> 0,1,2,3.
 constexpr uint8_t ADDRESS[8]={0,1,2,3,0,1,2,3};
@@ -47,7 +50,8 @@ bool runAllowed() {
   return digitalRead(RUN_SWITCH)==LOW && (!HAS_ESTOP_SIGNAL || digitalRead(ESTOP)==HIGH);
 }
 bool allLimitsOpen() {
-  for(uint8_t i=0;i<8;++i) if(digitalRead(LIMIT_PIN[i])==LOW) return false;
+  for(uint8_t i=0;i<8;++i)
+    if(digitalRead(LIMIT_PIN[i])==(LIMIT_ACTIVE_LOW[i]?LOW:HIGH)) return false;
   return true;
 }
 void stopMotion() {
@@ -73,8 +77,12 @@ void printStatus() {
   Serial.print(F(" pulseBudgetUsed=")); Serial.print(budget[selected]);
   Serial.print(F(" power=")); Serial.print(powered);
   Serial.print(F(" armed=")); Serial.println(armed);
-  Serial.print(F("LIMIT D42..D49 (1=pressed): "));
-  for(uint8_t i=0;i<8;++i) Serial.print(digitalRead(LIMIT_PIN[i])==LOW?'1':'0');
+  Serial.print(F("LIMIT D42..D49 raw (1=HIGH): "));
+  for(uint8_t i=0;i<8;++i) Serial.print(digitalRead(LIMIT_PIN[i])==HIGH?'1':'0');
+  Serial.println();
+  Serial.print(F("LIMIT D42..D49 pressed (1=yes, by configured polarity): "));
+  for(uint8_t i=0;i<8;++i)
+    Serial.print(digitalRead(LIMIT_PIN[i])==(LIMIT_ACTIVE_LOW[i]?LOW:HIGH)?'1':'0');
   Serial.println();
 }
 bool driverHealthy(uint8_t i) {

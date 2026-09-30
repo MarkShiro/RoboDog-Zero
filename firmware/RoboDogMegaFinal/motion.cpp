@@ -10,7 +10,11 @@ int32_t magnitude(int32_t x) { return x<0?-x:x; }
 void Motion::begin() {
   for(uint8_t i=0;i<MOTOR_COUNT;++i) { pinMode(PIN_LIMIT[i],INPUT_PULLUP); _target[i]=0; }
 }
-bool Motion::limitPressed(uint8_t j) const { return digitalRead(PIN_LIMIT[j])==LOW; }
+bool Motion::limitPressed(uint8_t j) const {
+  if(j>=MOTOR_COUNT || LIMIT_INPUT_FOR_J[j]>=MOTOR_COUNT) return true;
+  const uint8_t level=digitalRead(PIN_LIMIT[LIMIT_INPUT_FOR_J[j]]);
+  return level==(LIMIT_ACTIVE_LOW_FOR_J[j]?LOW:HIGH);
+}
 void Motion::servo(uint8_t j,int32_t target,uint16_t maxSps) {
   int32_t err=target-Steppers::position(j);
   if(magnitude(err)<=2) { Steppers::setSpeed(j,0); return; }
@@ -76,7 +80,10 @@ void Motion::update() {
     if(now-_t0>30000UL || magnitude(Steppers::position(_j)-_origin)>c.maxHomeSteps) {
       halt(); _fault=true; return;
     }
-    for(uint8_t i=0;i<_j;++i) if(limitPressed(i)) { halt(); _fault=true; return; }
+    // A different switch firing during this axis search means a crossed wire
+    // or unexpected mechanical contact; stop before moving another joint.
+    for(uint8_t i=0;i<MOTOR_COUNT;++i)
+      if(i!=_j && limitPressed(i)) { halt(); _fault=true; return; }
     switch(_hom) {
       case HOM_BACKOFF:
         if(limitPressed(_j)) Steppers::setSpeed(_j,-c.homeDir*(int16_t)HOMING_SPS);
